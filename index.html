@@ -112,9 +112,16 @@
         <span id="skjote-group" class="skjote-group">GJØVIK SENTRUM</span>
         <h3 id="skjote-title">Klikk på et felt på brettet</h3>
       </div>
+      <div id="skjote-photo-wrap" class="skjote-photo-wrap hidden" title="Klikk for å se stort bilde fra Gjøvik">
+        <img id="skjote-photo" class="skjote-photo" src="" alt="Ekte bilde fra Gjøvik" loading="lazy" />
+        <div class="skjote-photo-overlay">
+          <span id="skjote-photo-caption" class="skjote-photo-caption">📸 Fra Gjøvik</span>
+          <span class="skjote-photo-zoom">🔍 Stort bilde</span>
+        </div>
+      </div>
       <div id="skjote-body" class="skjote-body">
         <p class="skjote-flavor" id="skjote-flavor">
-          Utforsk 3D-brettet ved å dra med musa, zoome med rullehjulet, eller klikke på gater for å se priser og leie!
+          Utforsk 3D-brettet ved å dra med musa, zoome med rullehjulet, eller klikke på gater for å se ekte bilder, priser og leie!
         </p>
         <div id="skjote-details" class="skjote-details hidden"></div>
       </div>
@@ -159,6 +166,9 @@
     <div class="event-modal-card glass-panel">
       <div id="em-banner" class="em-banner">📰 BYAVISA MELDER</div>
       <div id="em-icon" class="em-icon">🎉</div>
+      <div id="em-photo-wrap" class="em-photo-wrap hidden">
+        <img id="em-photo" class="em-photo" src="" alt="Bilde fra Gjøvik" />
+      </div>
       <h2 id="em-title">Tittel</h2>
       <p id="em-desc" class="em-desc">Beskrivelse</p>
       <div id="em-extra" class="em-extra"></div>
@@ -352,6 +362,24 @@
       <h1 id="win-title">VI HAR EN GJØVIKMILLIONÆR!</h1>
       <p id="win-desc" class="win-desc">Spiller 1 eier hele byen fra Hunndalen til Hovdetoppen!</p>
       <button onclick="location.reload()" class="primary-btn big-btn">🔄 Spill en ny runde</button>
+    </div>
+  </div>
+
+  <!-- Real Place Photo Lightbox Modal -->
+  <div id="photo-lightbox-modal" class="modal-backdrop hidden">
+    <div class="photo-lightbox-card glass-panel">
+      <div class="modal-header">
+        <div>
+          <span id="pl-group" class="skjote-group" style="color:#fbbf24">GJØVIK</span>
+          <h2 id="pl-title">Storgata</h2>
+        </div>
+        <button id="btn-close-lightbox" class="close-btn">✕</button>
+      </div>
+      <div class="pl-img-wrap">
+        <img id="pl-img" src="" alt="Stort bilde fra Gjøvik" />
+      </div>
+      <p id="pl-caption" class="pl-caption"></p>
+      <p id="pl-flavor" class="pl-flavor"></p>
     </div>
   </div>
 

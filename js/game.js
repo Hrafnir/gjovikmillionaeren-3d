@@ -252,6 +252,23 @@ class GjovikMonopolyGame {
       document.getElementById('rules-modal').classList.add('hidden');
     });
 
+    // Real Place Photo Lightbox Modal
+    document.getElementById('skjote-photo-wrap')?.addEventListener('click', () => {
+      if (this.inspectedTileId !== undefined && BOARD_TILES[this.inspectedTileId]) {
+        sound.click();
+        this.openPhotoLightbox(BOARD_TILES[this.inspectedTileId]);
+      }
+    });
+    document.getElementById('btn-close-lightbox')?.addEventListener('click', () => {
+      sound.click();
+      document.getElementById('photo-lightbox-modal').classList.add('hidden');
+    });
+    document.getElementById('photo-lightbox-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'photo-lightbox-modal') {
+        document.getElementById('photo-lightbox-modal').classList.add('hidden');
+      }
+    });
+
     // Turn & Dice Actions
     document.getElementById('btn-roll').addEventListener('click', () => {
       if (!this.getActivePlayer()?.isAI) this.handleRollDice();
@@ -725,7 +742,7 @@ class GjovikMonopolyGame {
       sound.payRent();
       this.payToPot(player, tile.amount);
       this.addLog(`🏛️ ${player.name} betalte kr ${tile.amount} i ${tile.name}.`);
-      await this.showEventModalAsync('🏛️ SKATT TIL GJØVIK KOMMUNE', '💸', tile.name, tile.flavor, player.isAI);
+      await this.showEventModalAsync('🏛️ SKATT TIL GJØVIK KOMMUNE', '💸', tile.name, tile.flavor, player.isAI, tile.photo);
     } else if (tile.type === 'parking') {
       if (this.potRule === 'pot' && this.fastlandPot > 0) {
         const won = this.fastlandPot;
@@ -739,7 +756,8 @@ class GjovikMonopolyGame {
           '🏆',
           `${player.name} vant kr ${won.toLocaleString('no-NO')}!`,
           'Etter et svalestup fra 10-meteren på Fastland dukket hele byens skatte- og bøtepott opp!',
-          player.isAI
+          player.isAI,
+          tile.photo
         );
       }
     } else if (tile.type === 'gotojail') {
@@ -749,16 +767,17 @@ class GjovikMonopolyGame {
         '⛰️',
         'Rett i Arresten i Fjellhallen!',
         tile.flavor,
-        player.isAI
+        player.isAI,
+        tile.photo
       );
       this.sendPlayerToJail(player);
     } else if (tile.type === 'chance') {
       const card = this.drawCardFromDeck('chance');
-      await this.showEventModalAsync('📰 BYAVISA MELDER', card.icon, card.title, card.desc, player.isAI);
+      await this.showEventModalAsync('📰 BYAVISA MELDER', card.icon, card.title, card.desc, player.isAI, card.photo || tile.photo);
       await this.executeCardAction(player, card);
     } else if (tile.type === 'chest') {
       const card = this.drawCardFromDeck('chest');
-      await this.showEventModalAsync('🎁 MJØSGLØTT', card.icon, card.title, card.desc, player.isAI);
+      await this.showEventModalAsync('🎁 MJØSGLØTT', card.icon, card.title, card.desc, player.isAI, card.photo || tile.photo);
       await this.executeCardAction(player, card);
     }
 
@@ -1208,6 +1227,7 @@ class GjovikMonopolyGame {
       item.innerHTML = `
         <div class="pm-color-bar" style="background:${groupColor}"></div>
         <div class="pm-content">
+          ${tile.photo ? `<img class="pm-photo-thumb" src="${tile.photo}" alt="${tile.name}" title="Klikk for stort bilde av ${tile.name}" loading="lazy" />` : ''}
           <div style="font-weight:800; font-size:0.95rem;">${tile.name}</div>
           <div style="font-size:0.78rem; color:#cbd5e1">${levelLabel}</div>
           ${tile.houseCost ? `<div style="font-size:0.74rem; color:#94a3b8">Byggepris: kr ${tile.houseCost}</div>` : ''}
@@ -1227,6 +1247,11 @@ class GjovikMonopolyGame {
           </div>
         </div>
       `;
+
+      item.querySelector('.pm-photo-thumb')?.addEventListener('click', () => {
+        sound.click();
+        this.openPhotoLightbox(tile);
+      });
 
       const buildBtn = item.querySelector('.btn-build');
       if (buildBtn) {
@@ -1513,6 +1538,19 @@ class GjovikMonopolyGame {
   }
 
   // ==================== INSPECTOR & HUD UPDATES ====================
+  openPhotoLightbox(tile) {
+    if (!tile || !tile.photo) return;
+    const modal = document.getElementById('photo-lightbox-modal');
+    const groupInfo = GROUP_COLORS[tile.group] || GROUP_COLORS.special;
+    document.getElementById('pl-group').textContent = groupInfo.name;
+    document.getElementById('pl-title').textContent = tile.name;
+    document.getElementById('pl-img').src = tile.photo.replace('?width=720', '?width=1280');
+    document.getElementById('pl-img').alt = tile.name;
+    document.getElementById('pl-caption').textContent = `📸 ${tile.photoCaption || tile.name}`;
+    document.getElementById('pl-flavor').textContent = tile.flavor || '';
+    modal.classList.remove('hidden');
+  }
+
   inspectTile(tileId) {
     const tile = BOARD_TILES[tileId];
     if (!tile) return;
@@ -1525,6 +1563,21 @@ class GjovikMonopolyGame {
     document.getElementById('skjote-group').textContent = groupInfo.name;
     document.getElementById('skjote-title').textContent = tile.name;
     document.getElementById('skjote-flavor').textContent = tile.flavor;
+
+    // Show real photograph of the street/landmark in Gjøvik
+    const photoWrap = document.getElementById('skjote-photo-wrap');
+    const photoImg = document.getElementById('skjote-photo');
+    const photoCap = document.getElementById('skjote-photo-caption');
+    if (photoWrap && photoImg && tile.photo) {
+      photoImg.src = tile.photo;
+      photoImg.alt = tile.name;
+      if (photoCap) {
+        photoCap.textContent = `📸 ${tile.photoCaption || tile.name}`;
+      }
+      photoWrap.classList.remove('hidden');
+    } else if (photoWrap) {
+      photoWrap.classList.add('hidden');
+    }
 
     const details = document.getElementById('skjote-details');
     const prop = this.properties.get(tile.id);
@@ -1723,13 +1776,24 @@ class GjovikMonopolyGame {
     log.prepend(item);
   }
 
-  showEventModalAsync(banner, icon, title, desc, autoCloseForAI = false) {
+  showEventModalAsync(banner, icon, title, desc, autoCloseForAI = false, photoUrl = null) {
     return new Promise(resolve => {
       const modal = document.getElementById('event-modal');
       document.getElementById('em-banner').textContent = banner;
       document.getElementById('em-icon').textContent = icon;
       document.getElementById('em-title').textContent = title;
       document.getElementById('em-desc').textContent = desc;
+
+      const photoWrap = document.getElementById('em-photo-wrap');
+      const photoImg = document.getElementById('em-photo');
+      if (photoWrap && photoImg && photoUrl) {
+        photoImg.src = photoUrl;
+        photoImg.alt = title;
+        photoWrap.classList.remove('hidden');
+      } else if (photoWrap) {
+        photoWrap.classList.add('hidden');
+      }
+
       modal.classList.remove('hidden');
 
       let closed = false;
