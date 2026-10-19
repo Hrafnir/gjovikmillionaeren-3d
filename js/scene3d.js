@@ -1258,13 +1258,29 @@ export class BoardScene3D {
     this.playerTokens.clear();
 
     players.forEach((p, idx) => {
-      const tokenGroup = this.buildCustomTokenMesh(p.token.id, p.token.color);
+      const colorHex = p.color || p.token.color;
+      const tokenGroup = this.buildCustomTokenMesh(p.token.id, colorHex);
       const pos = this.getPlayerSlotPosition(p.position, idx, players.length);
       tokenGroup.position.copy(pos);
       tokenGroup.rotation.y = this.getTrackForwardAngle(p.position);
       this.scene.add(tokenGroup);
       this.playerTokens.set(p.id, tokenGroup);
     });
+  }
+
+  // Live-update a player's 3D token color mid-game without losing position/rotation
+  updatePlayerTokenColor(player) {
+    const oldMesh = this.playerTokens.get(player.id);
+    const colorHex = player.color || player.token.color;
+    const newMesh = this.buildCustomTokenMesh(player.token.id, colorHex);
+
+    if (oldMesh) {
+      newMesh.position.copy(oldMesh.position);
+      newMesh.rotation.copy(oldMesh.rotation);
+      this.scene.remove(oldMesh);
+    }
+    this.scene.add(newMesh);
+    this.playerTokens.set(player.id, newMesh);
   }
 
   buildCustomTokenMesh(tokenId, colorHex) {
@@ -1278,7 +1294,7 @@ export class BoardScene3D {
     const playerGlowMat = new THREE.MeshStandardMaterial({
       color: colorHex,
       emissive: colorHex,
-      emissiveIntensity: 0.38,
+      emissiveIntensity: 0.45,
       roughness: 0.2,
       metalness: 0.5
     });
@@ -1294,27 +1310,26 @@ export class BoardScene3D {
     });
 
     // Shared Collector Pedestal Base with Player-Colored Glowing Ring & Brass Trim
-    const pedBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.64, 0.14, 28), darkBaseMat);
+    const pedBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.65, 0.14, 28), darkBaseMat);
     pedBottom.position.y = 0.07;
     pedBottom.castShadow = true;
     pedBottom.receiveShadow = true;
     group.add(pedBottom);
 
-    const colorRing = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.055, 12, 28), playerGlowMat);
+    const colorRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.075, 12, 28), playerGlowMat);
     colorRing.rotation.x = Math.PI / 2;
     colorRing.position.y = 0.13;
     group.add(colorRing);
 
-    const brassTop = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.54, 0.06, 28), goldMat);
+    const brassTop = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.54, 0.06, 28), playerMat);
     brassTop.position.y = 0.17;
     brassTop.castShadow = true;
     group.add(brassTop);
 
     // ==================== 1. SKIBLADNER (🚢 Mjøsas Hvite Svane) ====================
     if (tokenId === 'skibladner') {
-      // Mjøsa wave cushion under the steamer
-      const waveMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.2, metalness: 0.3 });
-      const waveBase = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.49, 0.08, 24), waveMat);
+      // Player-colored wave cushion under the steamer
+      const waveBase = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.49, 0.08, 24), playerMat);
       waveBase.position.y = 0.22;
       group.add(waveBase);
 
@@ -1384,25 +1399,27 @@ export class BoardScene3D {
         chocGroup.add(fold);
       });
 
-      // Classic Vintage «GJØVIK CHOKOLADE» Wrapper around bottom half
+      // Classic Vintage «GJØVIK CHOKOLADE» Wrapper in Player's Chosen Color!
       const wrapCanvas = document.createElement('canvas');
       wrapCanvas.width = 256;
       wrapCanvas.height = 256;
       const wCtx = wrapCanvas.getContext('2d');
-      wCtx.fillStyle = '#991b1b';
+      wCtx.fillStyle = colorHex || '#facc15';
       wCtx.fillRect(0, 0, 256, 256);
-      wCtx.strokeStyle = '#fbbf24';
-      wCtx.lineWidth = 14;
+      wCtx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+      wCtx.fillRect(24, 24, 208, 208);
+      wCtx.strokeStyle = colorHex || '#fbbf24';
+      wCtx.lineWidth = 10;
       wCtx.strokeRect(12, 12, 232, 232);
-      wCtx.fillStyle = '#fef3c7';
+      wCtx.fillStyle = '#ffffff';
       wCtx.textAlign = 'center';
-      wCtx.font = '900 44px serif';
+      wCtx.font = '900 42px serif';
       wCtx.fillText('GJØVIK', 128, 112);
       wCtx.fillStyle = '#fbbf24';
-      wCtx.font = '800 28px sans-serif';
-      wCtx.fillText('CHOKOLADE', 128, 162);
-      wCtx.font = '700 22px serif';
-      wCtx.fillText('★ ANNO 1909 ★', 128, 206);
+      wCtx.font = '800 26px sans-serif';
+      wCtx.fillText('CHOKOLADE', 128, 160);
+      wCtx.font = '700 20px serif';
+      wCtx.fillText('★ ANNO 1909 ★', 128, 202);
 
       const wrapTex = new THREE.CanvasTexture(wrapCanvas);
       const wrapMat = new THREE.MeshStandardMaterial({ map: wrapTex, roughness: 0.3 });
@@ -1926,16 +1943,37 @@ export class BoardScene3D {
 
     if (!ownerColorHex) return;
 
+    // Dark contrasting base frame so every player color (including yellow & white) pops clearly
+    const frameGeo = new THREE.BoxGeometry(2.38, 0.08, 0.46);
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    frame.position.set(0, 0.03, 1.55);
+    bGroup.add(frame);
+
     // Ownership glowing strip on outer edge of tile
-    const stripGeo = new THREE.BoxGeometry(2.1, 0.14, 0.34);
+    const stripGeo = new THREE.BoxGeometry(2.26, 0.20, 0.36);
     const stripMat = new THREE.MeshStandardMaterial({
       color: isMortgaged ? 0x475569 : ownerColorHex,
       emissive: isMortgaged ? 0x000000 : ownerColorHex,
-      emissiveIntensity: 0.45
+      emissiveIntensity: 0.5,
+      roughness: 0.25,
+      metalness: 0.25
     });
     const strip = new THREE.Mesh(stripGeo, stripMat);
-    strip.position.set(0, 0.05, 1.55);
+    strip.position.set(0, 0.11, 1.55);
+    strip.castShadow = true;
     bGroup.add(strip);
+
+    // Corner owner bollards on outer left & right of the strip for 3D visibility from low angles
+    [-1.04, 1.04].forEach(xSide => {
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.16, 0.34, 14),
+        stripMat
+      );
+      post.position.set(xSide, 0.17, 1.55);
+      post.castShadow = true;
+      bGroup.add(post);
+    });
 
     if (isMortgaged) return;
 

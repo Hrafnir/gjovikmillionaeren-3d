@@ -83,7 +83,7 @@
     <!-- Current Turn Banner -->
     <div id="active-player-card" class="active-player-card">
       <div class="ap-header">
-        <div id="ap-avatar" class="ap-avatar">🚢</div>
+        <div id="ap-avatar" class="ap-avatar" title="Klikk for å endre brikkefarge eller brikke">🚢</div>
         <div class="ap-info">
           <span id="ap-turn-tag" class="ap-turn-tag">DIN TUR NÅ</span>
           <h2 id="ap-name">Spiller 1</h2>
@@ -380,6 +380,28 @@
       </div>
       <p id="pl-caption" class="pl-caption"></p>
       <p id="pl-flavor" class="pl-flavor"></p>
+    </div>
+  </div>
+
+  <!-- Live Player Token & Color Picker Modal (Change Color Anytime!) -->
+  <div id="color-picker-modal" class="modal-backdrop hidden">
+    <div class="color-picker-card glass-panel">
+      <div class="modal-header">
+        <div>
+          <span class="skjote-group" style="color:#fbbf24">🎨 BRIKKE & SPILLERFARGE</span>
+          <h2 id="cp-player-title">Endre farge for spiller</h2>
+        </div>
+        <button id="btn-close-color-picker" class="close-btn">✕</button>
+      </div>
+      <p class="modal-sub">Velg en tydelig farge på brikken og gatene du eier på brettet:</p>
+      <div id="cp-swatches-grid" class="cp-swatches-grid"></div>
+      <div class="cp-custom-row">
+        <label for="cp-custom-input">🌈 Egendefinert farge:</label>
+        <input type="color" id="cp-custom-input" class="cp-custom-input" value="#38bdf8" />
+      </div>
+      <div class="skjote-divider" style="background:rgba(255,255,255,0.14); margin:6px 0;"></div>
+      <p class="modal-sub">Bytt 3D-brikke (valgfritt):</p>
+      <div id="cp-tokens-grid" class="cp-tokens-grid"></div>
     </div>
   </div>
 

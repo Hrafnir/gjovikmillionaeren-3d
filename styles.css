@@ -804,10 +804,72 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sp-main-row {
   display: grid;
-  grid-template-columns: 38px 1fr 165px 140px;
+  grid-template-columns: 38px 1fr 155px 135px;
   gap: 8px;
   align-items: center;
+}
+
+.sp-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 46px;
+}
+
+.sp-color-label {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sp-swatches {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.sp-swatch-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  padding: 0;
+}
+
+.sp-swatch-dot:hover {
+  transform: scale(1.18);
+}
+
+.sp-swatch-dot.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px #0f172a, 0 0 10px rgba(255, 255, 255, 0.85);
+  transform: scale(1.18);
+}
+
+.sp-swatch-dot.used-by-other {
+  opacity: 0.42;
+}
+
+.sp-custom-color-input {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
 }
 
 .sp-color-badge {
@@ -820,7 +882,7 @@ body, html {
   font-size: 1.3rem;
 }
 
-.sp-name-input, .sp-type-select, .sp-token-select, .setup-select, .trade-input, .trade-select {
+.sp-name-input, .sp-type-select, .sp-token-select, .sp-color-select, .setup-select, .trade-input, .trade-select {
   background: rgba(15, 23, 42, 0.88);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -1269,4 +1331,134 @@ body, html {
   #inspector-sidebar { width: 265px; }
   #turn-dock { min-width: 480px; }
 }
+
+/* Mid-Game Player Color & Token Picker Modal */
+.color-picker-card {
+  width: min(520px, 92vw);
+  padding: 22px 24px;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cp-swatches-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.cp-swatch-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.cp-swatch-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.cp-swatch-btn.active {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.18);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
+}
+
+.cp-swatch-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  flex-shrink: 0;
+}
+
+.cp-custom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.cp-custom-input {
+  width: 44px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cp-tokens-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.cp-token-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cp-token-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.cp-token-btn.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.p-color-edit-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #f8fafc;
+  border-radius: 6px;
+  padding: 1px 5px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.p-color-edit-btn:hover {
+  background: rgba(251, 191, 36, 0.28);
+  border-color: #fbbf24;
+  transform: scale(1.08);
+}
+
+.ap-avatar {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.ap-avatar:hover {
+  transform: scale(1.08);
+}
+
 

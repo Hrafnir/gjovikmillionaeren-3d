@@ -1,4 +1,4 @@
-import { BOARD_TILES, TOKENS, GROUP_COLORS, CHANCE_CARDS, CHEST_CARDS, GJOVIK_QUOTES } from './data.js';
+import { BOARD_TILES, TOKENS, PLAYER_COLORS, GROUP_COLORS, CHANCE_CARDS, CHEST_CARDS, GJOVIK_QUOTES } from './data.js';
 import { BoardScene3D } from './scene3d.js';
 import { sound } from './sound.js';
 
@@ -41,11 +41,11 @@ class GjovikMonopolyGame {
       }
     });
 
-    // Setup default 3 players (1 Human + 2 AI Robots so user can test AI immediately or switch to all human)
+    // Setup default 3 players with clearly distinct colors (Blue, Yellow, Red)
     this.setupDraftPlayers = [
-      { name: 'Kari fra Kallerud', tokenIdx: 0, type: 'human' },
-      { name: 'Ola i Storgata', tokenIdx: 1, type: 'ai_medium' },
-      { name: 'Per på Hovdetoppen', tokenIdx: 2, type: 'ai_hard' }
+      { name: 'Kari fra Kallerud', tokenIdx: 0, color: PLAYER_COLORS[0].hex, type: 'human' },
+      { name: 'Ola i Storgata', tokenIdx: 1, color: PLAYER_COLORS[1].hex, type: 'ai_medium' },
+      { name: 'Per på Hovdetoppen', tokenIdx: 2, color: PLAYER_COLORS[2].hex, type: 'ai_hard' }
     ];
 
     // Initialize 3D Scene
@@ -86,9 +86,15 @@ class GjovikMonopolyGame {
         'Kari fra Kallerud', 'Ola i Storgata', 'Per på Hovdetoppen',
         'Lise fra Hunndalen', 'Sondre på Fastland', 'Gerd på Gjøvik Gård'
       ];
+      const usedColors = new Set(this.setupDraftPlayers.map(p => p.color?.toLowerCase()));
+      const freeColorObj = PLAYER_COLORS.find(c => !usedColors.has(c.hex.toLowerCase()));
+      const usedTokens = new Set(this.setupDraftPlayers.map(p => p.tokenIdx));
+      const freeTokenIdx = TOKENS.findIndex((_, i) => !usedTokens.has(i));
+
       this.setupDraftPlayers.push({
         name: defaultNames[nextIdx] || `Spiller ${nextIdx + 1}`,
-        tokenIdx: nextIdx % TOKENS.length,
+        tokenIdx: freeTokenIdx !== -1 ? freeTokenIdx : (nextIdx % TOKENS.length),
+        color: freeColorObj ? freeColorObj.hex : PLAYER_COLORS[nextIdx % PLAYER_COLORS.length].hex,
         type: 'ai_medium'
       });
       this.renderSetupPlayers();
@@ -114,25 +120,55 @@ class GjovikMonopolyGame {
 
     this.setupDraftPlayers.forEach((dp, idx) => {
       const token = TOKENS[dp.tokenIdx];
+      const playerColor = dp.color || token.color;
+      const otherUsedColors = new Set(
+        this.setupDraftPlayers
+          .filter((_, oIdx) => oIdx !== idx)
+          .map(other => (other.color || TOKENS[other.tokenIdx].color).toLowerCase())
+      );
+
       const row = document.createElement('div');
       row.className = 'setup-player-item';
       row.innerHTML = `
-        <div class="sp-color-badge" style="background:${token.color}33; border: 2px solid ${token.color}">
-          ${token.icon}
+        <div class="sp-main-row">
+          <div class="sp-color-badge" style="background:${playerColor}33; border: 2px solid ${playerColor}; box-shadow: 0 0 10px ${playerColor}44">
+            ${token.icon}
+          </div>
+          <input type="text" class="sp-name-input" value="${dp.name}" data-idx="${idx}" placeholder="Spillernavn" />
+          <select class="sp-type-select" data-idx="${idx}">
+            ${Object.entries(AI_DIFFICULTIES).map(([key, info]) => `
+              <option value="${key}" ${key === dp.type ? 'selected' : ''}>${info.label}</option>
+            `).join('')}
+          </select>
+          <select class="sp-token-select" data-idx="${idx}">
+            ${TOKENS.map((t, tIdx) => `
+              <option value="${tIdx}" ${tIdx === dp.tokenIdx ? 'selected' : ''}>
+                ${t.icon} ${t.name}
+              </option>
+            `).join('')}
+          </select>
         </div>
-        <input type="text" class="sp-name-input" value="${dp.name}" data-idx="${idx}" placeholder="Spillernavn" />
-        <select class="sp-type-select" data-idx="${idx}">
-          ${Object.entries(AI_DIFFICULTIES).map(([key, info]) => `
-            <option value="${key}" ${key === dp.type ? 'selected' : ''}>${info.label}</option>
-          `).join('')}
-        </select>
-        <select class="sp-token-select" data-idx="${idx}">
-          ${TOKENS.map((t, tIdx) => `
-            <option value="${tIdx}" ${tIdx === dp.tokenIdx ? 'selected' : ''}>
-              ${t.icon} ${t.name}
-            </option>
-          `).join('')}
-        </select>
+        <div class="sp-color-row">
+          <span class="sp-color-label">🎨 Brikkefarge:</span>
+          <div class="sp-swatches">
+            ${PLAYER_COLORS.map(c => {
+              const isSelected = c.hex.toLowerCase() === playerColor.toLowerCase();
+              const isUsedByOther = otherUsedColors.has(c.hex.toLowerCase());
+              return `<button type="button" class="sp-swatch-dot ${isSelected ? 'active' : ''} ${isUsedByOther ? 'used-by-other' : ''}" data-idx="${idx}" data-hex="${c.hex}" style="background:${c.hex}" title="${c.name}${isUsedByOther ? ' (Brukes av en annen spiller)' : ''}"></button>`;
+            }).join('')}
+            <input type="color" class="sp-custom-color-input" data-idx="${idx}" value="${playerColor}" title="Velg valgfri egendefinert farge" />
+          </div>
+          <select class="sp-color-select" data-idx="${idx}" style="max-width: 155px; padding: 5px 8px; font-size: 0.76rem;">
+            ${PLAYER_COLORS.map(c => {
+              const isSelected = c.hex.toLowerCase() === playerColor.toLowerCase();
+              const isUsedByOther = otherUsedColors.has(c.hex.toLowerCase());
+              return `<option value="${c.hex}" ${isSelected ? 'selected' : ''}>${c.emoji} ${c.name}${isUsedByOther ? ' (i bruk)' : ''}</option>`;
+            }).join('')}
+            ${!PLAYER_COLORS.some(c => c.hex.toLowerCase() === playerColor.toLowerCase())
+              ? `<option value="${playerColor}" selected>🌈 Egen (${playerColor})</option>`
+              : ''}
+          </select>
+        </div>
       `;
       list.appendChild(row);
     });
@@ -160,6 +196,32 @@ class GjovikMonopolyGame {
         this.renderSetupPlayers();
       });
     });
+
+    list.querySelectorAll('.sp-swatch-dot').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        sound.click();
+        const i = Number(e.currentTarget.dataset.idx);
+        this.setupDraftPlayers[i].color = e.currentTarget.dataset.hex;
+        this.renderSetupPlayers();
+      });
+    });
+
+    list.querySelectorAll('.sp-color-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        sound.click();
+        const i = Number(e.target.dataset.idx);
+        this.setupDraftPlayers[i].color = e.target.value;
+        this.renderSetupPlayers();
+      });
+    });
+
+    list.querySelectorAll('.sp-custom-color-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const i = Number(e.target.dataset.idx);
+        this.setupDraftPlayers[i].color = e.target.value;
+        this.renderSetupPlayers();
+      });
+    });
   }
 
   startNewGame() {
@@ -175,10 +237,14 @@ class GjovikMonopolyGame {
 
     this.players = this.setupDraftPlayers.map((dp, idx) => {
       const diffInfo = AI_DIFFICULTIES[dp.type] || AI_DIFFICULTIES.human;
+      const baseToken = TOKENS[dp.tokenIdx] || TOKENS[0];
+      const chosenColor = dp.color || baseToken.color;
       return {
         id: idx,
         name: dp.name.trim() || `Spiller ${idx + 1}`,
-        token: TOKENS[dp.tokenIdx],
+        color: chosenColor,
+        tokenIdx: dp.tokenIdx,
+        token: { ...baseToken, color: chosenColor },
         isAI: diffInfo.isAI,
         aiLevel: diffInfo.level || null,
         aiBadge: diffInfo.badge || null,
@@ -266,6 +332,24 @@ class GjovikMonopolyGame {
     document.getElementById('photo-lightbox-modal')?.addEventListener('click', (e) => {
       if (e.target.id === 'photo-lightbox-modal') {
         document.getElementById('photo-lightbox-modal').classList.add('hidden');
+      }
+    });
+
+    // Mid-game Player Color & Token Picker Modal
+    document.getElementById('ap-avatar')?.addEventListener('click', () => {
+      const active = this.getActivePlayer();
+      if (active) {
+        sound.click();
+        this.openColorPickerModal(active.id);
+      }
+    });
+    document.getElementById('btn-close-color-picker')?.addEventListener('click', () => {
+      sound.click();
+      document.getElementById('color-picker-modal').classList.add('hidden');
+    });
+    document.getElementById('color-picker-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'color-picker-modal') {
+        document.getElementById('color-picker-modal').classList.add('hidden');
       }
     });
 
@@ -1538,6 +1622,115 @@ class GjovikMonopolyGame {
   }
 
   // ==================== INSPECTOR & HUD UPDATES ====================
+  openColorPickerModal(playerId) {
+    const player = this.players[playerId];
+    if (!player) return;
+
+    const modal = document.getElementById('color-picker-modal');
+    document.getElementById('cp-player-title').textContent = `🎨 ${player.token.icon} ${player.name}`;
+
+    const renderPickerContents = () => {
+      const currentColor = (player.color || player.token.color).toLowerCase();
+      const otherUsedColors = new Set(
+        this.players
+          .filter(other => other.id !== player.id && !other.bankrupt)
+          .map(other => (other.color || other.token.color).toLowerCase())
+      );
+
+      const swatchesGrid = document.getElementById('cp-swatches-grid');
+      swatchesGrid.innerHTML = PLAYER_COLORS.map(c => {
+        const isCurrent = c.hex.toLowerCase() === currentColor;
+        const usedBy = this.players.find(
+          other => other.id !== player.id && !other.bankrupt && (other.color || other.token.color).toLowerCase() === c.hex.toLowerCase()
+        );
+        return `
+          <button type="button" class="cp-swatch-btn ${isCurrent ? 'active' : ''}" data-hex="${c.hex}">
+            <span class="cp-swatch-circle" style="background:${c.hex}"></span>
+            <span>${c.name}${usedBy ? ` (${usedBy.name.split(' ')[0]})` : ''}</span>
+          </button>
+        `;
+      }).join('');
+
+      swatchesGrid.querySelectorAll('.cp-swatch-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          sound.click();
+          this.changePlayerColor(player.id, btn.dataset.hex);
+          renderPickerContents();
+        });
+      });
+
+      const customInput = document.getElementById('cp-custom-input');
+      customInput.value = player.color || player.token.color;
+      customInput.oninput = (e) => {
+        this.changePlayerColor(player.id, e.target.value);
+        renderPickerContents();
+      };
+
+      const tokensGrid = document.getElementById('cp-tokens-grid');
+      tokensGrid.innerHTML = TOKENS.map((t, tIdx) => {
+        const isCurrentToken = player.token.id === t.id;
+        return `
+          <button type="button" class="cp-token-btn ${isCurrentToken ? 'active' : ''}" data-tidx="${tIdx}">
+            <span style="font-size:1.25rem">${t.icon}</span>
+            <span>${t.name}</span>
+          </button>
+        `;
+      }).join('');
+
+      tokensGrid.querySelectorAll('.cp-token-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          sound.click();
+          this.changePlayerToken(player.id, Number(btn.dataset.tidx));
+          document.getElementById('cp-player-title').textContent = `🎨 ${player.token.icon} ${player.name}`;
+          renderPickerContents();
+        });
+      });
+    };
+
+    renderPickerContents();
+    modal.classList.remove('hidden');
+  }
+
+  changePlayerColor(playerId, newColorHex) {
+    const player = this.players[playerId];
+    if (!player || !newColorHex) return;
+
+    player.color = newColorHex;
+    player.token = { ...player.token, color: newColorHex };
+
+    // 1. Update 3D Token on the board
+    this.scene3d.updatePlayerTokenColor(player);
+
+    // 2. Update all 3D ownership strips on properties owned by this player
+    this.properties.forEach((prop, tid) => {
+      if (prop.ownerId === player.id) {
+        this.scene3d.updateTileOwnershipAndBuildings(tid, newColorHex, prop.houses, prop.mortgaged);
+      }
+    });
+
+    // 3. Refresh HUD & Skjøte inspector
+    this.updateHUD();
+    if (this.inspectedTileId !== undefined) {
+      this.inspectTile(this.inspectedTileId);
+    }
+  }
+
+  changePlayerToken(playerId, newTokenIdx) {
+    const player = this.players[playerId];
+    const baseToken = TOKENS[newTokenIdx];
+    if (!player || !baseToken) return;
+
+    const currentColor = player.color || player.token.color;
+    player.tokenIdx = newTokenIdx;
+    player.token = { ...baseToken, color: currentColor };
+
+    this.scene3d.updatePlayerTokenColor(player);
+    this.updateHUD();
+    if (this.inspectedTileId !== undefined) {
+      this.inspectTile(this.inspectedTileId);
+    }
+  }
+
   openPhotoLightbox(tile) {
     if (!tile || !tile.photo) return;
     const modal = document.getElementById('photo-lightbox-modal');
@@ -1549,6 +1742,19 @@ class GjovikMonopolyGame {
     document.getElementById('pl-caption').textContent = `📸 ${tile.photoCaption || tile.name}`;
     document.getElementById('pl-flavor').textContent = tile.flavor || '';
     modal.classList.remove('hidden');
+  }
+
+  renderOwnerBadgeHtml(owner, prop, freeText = '🟢 Ledig – kan kjøpes!') {
+    if (!owner) {
+      return `<div class="skjote-owner-badge">${freeText}</div>`;
+    }
+    const c = owner.color || owner.token.color;
+    return `
+      <div class="skjote-owner-badge" style="background:${c}28; border: 2px solid ${c}; color:#0f172a; display:flex; align-items:center; justify-content:center; gap:6px;">
+        <span style="display:inline-block; width:13px; height:13px; border-radius:50%; background:${c}; border:1.5px solid #0f172a; flex-shrink:0;"></span>
+        <span>Eies av: ${owner.token.icon} ${owner.name}${prop?.mortgaged ? ' (PANTSATT)' : ''}</span>
+      </div>
+    `;
   }
 
   inspectTile(tileId) {
@@ -1599,9 +1805,7 @@ class GjovikMonopolyGame {
         <div class="rent-row ${curH === 5 ? 'current-level' : ''}"><span>🏨 Med HOTELL:</span><span>kr ${tile.rents[5]}</span></div>
         <div class="skjote-divider"></div>
         <div class="rent-row"><span>Pris per hus / hotell:</span><strong>kr ${tile.houseCost}</strong></div>
-        <div class="skjote-owner-badge" style="background:${owner ? owner.token.color + '33' : '#e2e8f0'}">
-          ${owner ? `Eies av: ${owner.token.icon} ${owner.name}${prop.mortgaged ? ' (PANTSATT)' : ''}` : '🟢 Ledig tomt – kan kjøpes!'}
-        </div>
+        ${this.renderOwnerBadgeHtml(owner, prop, '🟢 Ledig tomt – kan kjøpes!')}
         <div id="skjote-inline-actions" class="skjote-actions"></div>
       `;
     } else if (tile.type === 'station') {
@@ -1614,9 +1818,7 @@ class GjovikMonopolyGame {
         <div class="rent-row"><span>Leie med 2 knutepunkt:</span><span>kr 500</span></div>
         <div class="rent-row"><span>Leie med 3 knutepunkt:</span><span>kr 1 000</span></div>
         <div class="rent-row"><span>Leie med 4 knutepunkt:</span><span>kr 2 000</span></div>
-        <div class="skjote-owner-badge">
-          ${owner ? `Eies av: ${owner.token.icon} ${owner.name}${prop.mortgaged ? ' (PANTSATT)' : ''}` : '🟢 Ledig – kan kjøpes!'}
-        </div>
+        ${this.renderOwnerBadgeHtml(owner, prop)}
         <div id="skjote-inline-actions" class="skjote-actions"></div>
       `;
     } else if (tile.type === 'utility') {
@@ -1627,9 +1829,7 @@ class GjovikMonopolyGame {
         <div class="skjote-divider"></div>
         <div class="rent-row"><span>1 kommunalt verk:</span><span>25 × terningkast</span></div>
         <div class="rent-row"><span>Begge kommunale verk:</span><span>60 × terningkast</span></div>
-        <div class="skjote-owner-badge">
-          ${owner ? `Eies av: ${owner.token.icon} ${owner.name}${prop.mortgaged ? ' (PANTSATT)' : ''}` : '🟢 Ledig – kan kjøpes!'}
-        </div>
+        ${this.renderOwnerBadgeHtml(owner, prop)}
         <div id="skjote-inline-actions" class="skjote-actions"></div>
       `;
     } else {
@@ -1701,9 +1901,10 @@ class GjovikMonopolyGame {
 
     this.players.forEach((p, idx) => {
       const owned = BOARD_TILES.filter(t => this.properties.get(t.id)?.ownerId === p.id);
+      const pColor = p.color || p.token.color;
       const row = document.createElement('div');
       row.className = `player-row ${idx === this.currentPlayerIndex ? 'active-turn' : ''} ${p.bankrupt ? 'bankrupt' : ''}`;
-      row.style.borderLeftColor = p.token.color;
+      row.style.borderLeftColor = pColor;
 
       const dotsHtml = owned.map(t => {
         const c = GROUP_COLORS[t.group]?.hex || '#94a3b8';
@@ -1713,10 +1914,11 @@ class GjovikMonopolyGame {
 
       row.innerHTML = `
         <div class="p-left">
-          <div class="p-token-icon">${p.token.icon}</div>
+          <div class="p-token-icon" data-pid="${p.id}" style="background:${pColor}33; border: 2px solid ${pColor};" title="Klikk for å endre brikkefarge for ${p.name}">${p.token.icon}</div>
           <div>
             <div class="p-name">
               ${p.name}
+              <button type="button" class="p-color-edit-btn" data-pid="${p.id}" title="Endre brikkefarge eller brikke for ${p.name}">🎨</button>
               ${p.isAI ? `<span class="ai-badge">${p.aiBadge}</span>` : ''}
               ${p.inJail ? '⛓️' : ''}
             </div>
@@ -1728,6 +1930,18 @@ class GjovikMonopolyGame {
           <div class="p-dots">${dotsHtml}</div>
         </div>
       `;
+
+      row.querySelector('.p-token-icon')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sound.click();
+        this.openColorPickerModal(p.id);
+      });
+
+      row.querySelector('.p-color-edit-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sound.click();
+        this.openColorPickerModal(p.id);
+      });
 
       row.querySelectorAll('.p-dot').forEach(dotEl => {
         dotEl.addEventListener('click', (e) => {
@@ -1752,8 +1966,10 @@ class GjovikMonopolyGame {
     if (active) {
       const ownedCount = Array.from(this.properties.values()).filter(pr => pr.ownerId === active.id).length;
       const avatar = document.getElementById('ap-avatar');
+      const aColor = active.color || active.token.color;
       avatar.textContent = active.token.icon;
-      avatar.style.borderColor = active.token.color;
+      avatar.style.borderColor = aColor;
+      avatar.style.background = `${aColor}28`;
       document.getElementById('ap-name').textContent = active.name;
       document.getElementById('ap-title').textContent = this.getPlayerRankTitle(active);
       document.getElementById('ap-money').textContent = `kr ${active.money.toLocaleString('no-NO')}`;

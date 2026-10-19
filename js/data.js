@@ -1,12 +1,24 @@
 // Gjøvikmillionæren 3D – Komplett Spilldata for Gjøvik med ekte bilder og lokal kultur
 
+export const PLAYER_COLORS = [
+  { id: 'blue',   name: 'Mjøsblå',        hex: '#38bdf8', emoji: '🔵' },
+  { id: 'yellow', name: 'Solgul',         hex: '#facc15', emoji: '🟡' },
+  { id: 'red',    name: 'Postrød',        hex: '#ef4444', emoji: '🔴' },
+  { id: 'purple', name: 'Kallerud-Lilla', hex: '#a855f7', emoji: '🟣' },
+  { id: 'green',  name: 'Toten-Grønn',    hex: '#10b981', emoji: '🟢' },
+  { id: 'white',  name: 'Svanehvit',      hex: '#f8fafc', emoji: '⚪' },
+  { id: 'orange', name: 'Kobberoransje',  hex: '#f97316', emoji: '🟠' },
+  { id: 'pink',   name: 'Bringebærrosa',  hex: '#ec4899', emoji: '🩷' },
+  { id: 'teal',   name: 'Turkis',         hex: '#14b8a6', emoji: '🩵' }
+];
+
 export const TOKENS = [
   { id: 'skibladner', name: 'Skibladner', icon: '🚢', color: '#38bdf8', desc: 'Mjøsas Hvite Svane i egen høye person' },
-  { id: 'chocolate', name: 'Gjøvik-Sjokoladen', icon: '🍫', color: '#f59e0b', desc: 'Søt og eksklusiv fra Chokoladefabrikken' },
+  { id: 'chocolate', name: 'Gjøvik-Sjokoladen', icon: '🍫', color: '#facc15', desc: 'Søt og eksklusiv fra Chokoladefabrikken' },
   { id: 'ski', name: 'Fastland-Hoppski', icon: '🎿', color: '#ef4444', desc: 'Klar for svev fra Hovdetoppen' },
   { id: 'ntnu', name: 'Kallerud-Studenten', icon: '🎓', color: '#a855f7', desc: 'Drøyt god på cyber og billig nudel-økonomi' },
   { id: 'tractor', name: 'Toten-Traktoren', icon: '🚜', color: '#10b981', desc: 'Har krysset kommunegrensa med lommeboka full' },
-  { id: 'swan', name: 'Byvåpen-Svanen', icon: '🦢', color: '#f43f5e', desc: 'Kongelig vingesus fra Kauffeldts plass' }
+  { id: 'swan', name: 'Byvåpen-Svanen', icon: '🦢', color: '#f8fafc', desc: 'Kongelig vingesus fra Kauffeldts plass' }
 ];
 
 export const GROUP_COLORS = {
