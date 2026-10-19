@@ -683,7 +683,8 @@ class GjovikMonopolyGame {
     await this.resolveLandedTile(player, landedTile);
   }
 
-  async resolveLandedTile(player, tile) {
+  async resolveLandedTile(player, tile = BOARD_TILES[player.position]) {
+    if (!tile) tile = BOARD_TILES[player.position];
     this.setTurnStatus(`${player.name} landet på ${tile.name}`, tile.flavor);
 
     if (['street', 'station', 'utility'].includes(tile.type)) {
@@ -819,15 +820,16 @@ class GjovikMonopolyGame {
       await this.movePlayerSteps(player, steps);
     } else if (card.action === 'move_back') {
       this.isAnimatingMove = true;
-      for (let i = 0; i < card.steps; i++) {
+      for (let i = 0; i < (card.steps || 3); i++) {
         player.position = (player.position - 1 + 40) % 40;
         sound.step();
         await this.scene3d.animatePlayerStep(player.id, player.position, player.id, this.players.length);
       }
       this.isAnimatingMove = false;
+      const newTile = BOARD_TILES[player.position];
       this.scene3d.focusOnTile(player.position);
       this.inspectTile(player.position);
-      await this.resolveLandedTile(player);
+      await this.resolveLandedTile(player, newTile);
     }
 
     this.updateHUD();
