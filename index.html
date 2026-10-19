@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GJØVIKMILLIONÆREN 3D – Den Hvite By ved Mjøsa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Three.js & OrbitControls via CDN -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Top Navigation / Controls Bar -->
+  <header id="top-bar" class="glass-panel">
+    <div class="brand">
+      <span class="brand-swan">🦢</span>
+      <div>
+        <h1>GJØVIKMILLIONÆREN <span class="badge-3d">3D</span></h1>
+        <p class="subtitle">Eiendomskampen i Den Hvite By ved Mjøsa</p>
+      </div>
+    </div>
+
+    <div id="pot-indicator" class="pot-box" title="Penger samlet i Fastland-potten (Gratis Parkering)">
+      <span class="pot-icon">🏊‍♂️</span>
+      <div>
+        <span class="pot-label">Fastland-potten</span>
+        <span id="pot-amount" class="pot-value">kr 500</span>
+      </div>
+    </div>
+
+    <div class="top-controls">
+      <button id="btn-cam-orbit" class="ctrl-btn active" title="Fri 3D-rotasjon (Dra med musa, scroll for zoom)">
+        🎥 Oversikt
+      </button>
+      <button id="btn-cam-follow" class="ctrl-btn" title="Følg aktiv spiller tett på brettet">
+        🎯 Følg Brikke
+      </button>
+      <button id="btn-cam-top" class="ctrl-btn" title="Klassisk fugleperspektiv rett ovenfra">
+        🗺️ Kartvisning
+      </button>
+      <div class="divider-v"></div>
+      <button id="btn-daynight" class="ctrl-btn" title="Bytt mellom solskinnsdag på Mjøsa og kveldsstemning">
+        🌙 Kveld
+      </button>
+      <button id="btn-sound" class="ctrl-btn" title="Slå lydeffekter av/på">
+        🔊 Lyd
+      </button>
+      <button id="btn-rules" class="ctrl-btn" title="Se Gjøvik-regler og tips">
+        📖 Regler
+      </button>
+    </div>
+  </header>
+
+  <!-- Left Sidebar: Players & Leaderboard (Hot-Seat & AI Overview) -->
+  <aside id="players-sidebar" class="glass-panel">
+    <div class="sidebar-header">
+      <h2>👥 Spillere rundt bordet</h2>
+      <span id="round-counter" class="round-pill">Runde 1</span>
+    </div>
+    <div id="players-list" class="players-list"></div>
+
+    <div class="log-section">
+      <h3>📰 Siste nytt fra Gjøvik</h3>
+      <div id="event-log" class="event-log"></div>
+    </div>
+  </aside>
+
+  <!-- Right Sidebar: Active Player & Property Inspector -->
+  <aside id="inspector-sidebar" class="glass-panel">
+    <!-- Current Turn Banner -->
+    <div id="active-player-card" class="active-player-card">
+      <div class="ap-header">
+        <div id="ap-avatar" class="ap-avatar">🚢</div>
+        <div class="ap-info">
+          <span id="ap-turn-tag" class="ap-turn-tag">DIN TUR NÅ</span>
+          <h2 id="ap-name">Spiller 1</h2>
+          <p id="ap-title" class="ap-title">Turist på Jernbanetorget</p>
+        </div>
+      </div>
+      <div class="ap-stats">
+        <div class="stat-box">
+          <span class="stat-label">Kontanter</span>
+          <span id="ap-money" class="stat-val money-text">kr 15 000</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Eiendommer</span>
+          <span id="ap-props-count" class="stat-val">0 skjøter</span>
+        </div>
+      </div>
+      <div class="ap-actions-row">
+        <button id="btn-manage-props" class="secondary-btn">🏠 Mine Gater & Bygg</button>
+        <button id="btn-trade" class="secondary-btn">🤝 Foreslå Handel</button>
+      </div>
+    </div>
+
+    <!-- Selected Tile / Skjøte Inspector -->
+    <div id="tile-inspector" class="skjote-card">
+      <div id="skjote-header" class="skjote-header">
+        <span id="skjote-group" class="skjote-group">GJØVIK SENTRUM</span>
+        <h3 id="skjote-title">Klikk på et felt på brettet</h3>
+      </div>
+      <div id="skjote-body" class="skjote-body">
+        <p class="skjote-flavor" id="skjote-flavor">
+          Utforsk 3D-brettet ved å dra med musa, zoome med rullehjulet, eller klikke på gater for å se priser og leie!
+        </p>
+        <div id="skjote-details" class="skjote-details hidden"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Center: Dice & Turn Controls Dock -->
+  <section id="turn-dock" class="glass-panel">
+    <div id="dice-display" class="dice-display">
+      <div id="die-1" class="die-face">🎲</div>
+      <div id="die-2" class="die-face">🎲</div>
+    </div>
+    <div class="turn-status-wrap">
+      <div id="turn-status-text" class="turn-status-text">Klar til å kaste terningene!</div>
+      <div id="turn-subtext" class="turn-subtext">Skibladner tuter i det fjerne...</div>
+    </div>
+    <div class="dock-buttons">
+      <button id="btn-roll" class="primary-btn pulse-btn">🎲 KAST TERNINGER</button>
+      <button id="btn-buy-inline" class="success-btn hidden">💰 KJØP EIENDOM</button>
+      <button id="btn-auction-inline" class="warning-btn hidden">🔨 AUKSJONER BORT</button>
+      <button id="btn-skip-buy-inline" class="secondary-btn hidden">⏭️ Ikke kjøp</button>
+      <button id="btn-jail-pay" class="warning-btn hidden">🔓 Betal kr 500 (Ut av Arresten)</button>
+      <button id="btn-jail-card" class="success-btn hidden">🎟️ Bruk Frikort</button>
+      <button id="btn-end-turn" class="next-turn-btn hidden">➡️ NESTE SPILLER</button>
+    </div>
+  </section>
+
+  <!-- Hot-Seat Turn Transition Banner (Toast / Overlay) -->
+  <div id="hotseat-overlay" class="modal-backdrop hidden">
+    <div class="hotseat-card glass-panel">
+      <div class="hotseat-badge">🪑 BYTT SETE / SEND SKJERMEN</div>
+      <div id="hs-icon" class="hs-icon">🚢</div>
+      <h2 id="hs-player-name">Spiller 2</h2>
+      <p id="hs-player-rank" class="hs-rank">Storgata-investor • kr 15 000</p>
+      <p id="hs-quote" class="hs-quote">«Det er itte nøye bare det er dyrt i Gjøvik!»</p>
+      <button id="btn-hs-ready" class="primary-btn big-btn">🚀 JEG ER KLAR – START TUREN!</button>
+    </div>
+  </div>
+
+  <!-- Card Reveal Modal (Byavisa / Mjøsgløtt / Skjøte Kjøp) -->
+  <div id="event-modal" class="modal-backdrop hidden">
+    <div class="event-modal-card glass-panel">
+      <div id="em-banner" class="em-banner">📰 BYAVISA MELDER</div>
+      <div id="em-icon" class="em-icon">🎉</div>
+      <h2 id="em-title">Tittel</h2>
+      <p id="em-desc" class="em-desc">Beskrivelse</p>
+      <div id="em-extra" class="em-extra"></div>
+      <div id="em-actions" class="em-actions">
+        <button id="btn-em-ok" class="primary-btn">Den er grei!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auction Modal -->
+  <div id="auction-modal" class="modal-backdrop hidden">
+    <div class="auction-card glass-panel">
+      <div class="auction-banner">🔨 BYAUKSJON PÅ KAUFFELDTS PLASS</div>
+      <h2 id="auc-prop-name">Storgata</h2>
+      <p id="auc-prop-info" class="auc-sub">Ordinær pris: kr 3 200</p>
+      <div class="auc-current-box">
+        <span>Høyeste bud:</span>
+        <strong id="auc-high-bid">kr 200</strong>
+        <span id="auc-high-bidder">Ingen bud ennå</span>
+      </div>
+      <div id="auc-ai-status" class="auc-ai-status"></div>
+      <div id="auc-bidders-grid" class="auc-bidders-grid"></div>
+      <div class="auc-footer">
+        <button id="btn-auc-finish" class="primary-btn">🔔 Bank i bordet! (Avslutt auksjon)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Property Management & Building Modal -->
+  <div id="props-modal" class="modal-backdrop hidden">
+    <div class="props-modal-card glass-panel">
+      <div class="modal-header">
+        <div>
+          <h2>🏗️ Eiendomsforvaltning & Utbygging</h2>
+          <p id="pm-sub" class="modal-sub">Bygg hus og hoteller, eller pantsett skjøter for raske penger</p>
+        </div>
+        <button id="btn-close-props" class="close-btn">✕</button>
+      </div>
+      <div id="pm-rule-banner" class="pm-rule-banner"></div>
+      <div id="pm-grid" class="pm-grid"></div>
+    </div>
+  </div>
+
+  <!-- Trade Modal -->
+  <div id="trade-modal" class="modal-backdrop hidden">
+    <div class="trade-modal-card glass-panel">
+      <div class="modal-header">
+        <div>
+          <h2>🤝 Hestehandel på Gjøvik Marken</h2>
+          <p class="modal-sub">Bytt gater og mellomlegg med en medspiller eller robot rundt bordet</p>
+        </div>
+        <button id="btn-close-trade" class="close-btn">✕</button>
+      </div>
+      <div class="trade-columns">
+        <div class="trade-col">
+          <h3 id="trade-p1-name">Spiller 1 tilbyr:</h3>
+          <label class="trade-label">Kontanter (kr):</label>
+          <input type="number" id="trade-p1-cash" class="trade-input" min="0" step="100" value="0" />
+          <label class="trade-label">Velg eiendommer:</label>
+          <div id="trade-p1-props" class="trade-props-list"></div>
+        </div>
+        <div class="trade-exchange-icon">⇄</div>
+        <div class="trade-col">
+          <div class="trade-target-select-wrap">
+            <label class="trade-label">Handle med:</label>
+            <select id="trade-target-select" class="trade-select"></select>
+          </div>
+          <label class="trade-label">Kontanter (kr):</label>
+          <input type="number" id="trade-p2-cash" class="trade-input" min="0" step="100" value="0" />
+          <label class="trade-label">Velg eiendommer:</label>
+          <div id="trade-p2-props" class="trade-props-list"></div>
+        </div>
+      </div>
+      <div id="trade-feedback" class="trade-feedback hidden"></div>
+      <div class="trade-footer">
+        <button id="btn-execute-trade" class="success-btn big-btn">✅ Foreslå / Gjennomfør Handel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules Modal -->
+  <div id="rules-modal" class="modal-backdrop hidden">
+    <div class="rules-modal-card glass-panel">
+      <div class="modal-header">
+        <h2>📖 Velkommen til Gjøvikmillionæren 3D!</h2>
+        <button id="btn-close-rules" class="close-btn">✕</button>
+      </div>
+      <div class="rules-content">
+        <p><strong>Gjøvikmillionæren</strong> er en skreddersydd 3D-utgave av det klassiske brettspillet, satt til kjente veier, bydeler og landemerker i Gjøvik!</p>
+        <ul>
+          <li>🪑 <strong>Mennesker & Roboter (AI):</strong> Kombiner menneskespillere (bytte sete) og AI-roboter med tre ulike vanskelighetsgrader (<em>Lett: Toten-turist</em>, <em>Middels: Kallerud-økonom</em>, <em>Vanskelig: Storgata-baron</em>).</li>
+          <li>🏗️ <strong>Hus og Hoteller (Standard):</strong> Som standard må du <strong>eie alle gatene i en fargegruppe</strong> før du kan bygge hus eller hotell, og du må bygge jevnt (maks 1 hus forskjell mellom gater i samme serie). Når du eier hele fargeserien dobles også grunnleien på ubebygde tomter!</li>
+          <li>💰 <strong>Start og lønn:</strong> Hver gang du passerer eller lander på <strong>Jernbanetorget (START)</strong> mottar du <strong>kr 2 000</strong> (eller kr 4 000 ved landing hvis husregelen er valgt).</li>
+          <li>🔨 <strong>Auksjon:</strong> Hvis du lander på en ledig gate og ikke vil kjøpe den til full pris, kan de andre spillerne (inkludert robotene!) by på den på Kauffeldts plass.</li>
+          <li>🏊‍♂️ <strong>Fastland Friluftsbad & Stupetårnet:</strong> Med Fastland-husregelen havner skatter og bøter i potten ved det hvite funkis-stupetårnet fra 1947. Den som lander der vinner potten!</li>
+          <li>⛰️ <strong>Arresten i Fjellhallen:</strong> Havner du i kasjotten dypt inne i Hovdetoppen, kan du betale kr 500, bruke frikort, eller prøve å kaste to like.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start / Setup Screen Overlay -->
+  <div id="setup-overlay" class="modal-backdrop">
+    <div class="setup-card glass-panel">
+      <div class="setup-hero">
+        <div class="setup-swan">🦢🚢🏔️</div>
+        <h1>GJØVIKMILLIONÆREN 3D</h1>
+        <p>Kjøp opp Storgata, bygg hotell på Hovdetoppen og styr unna Arresten i Fjellhallen!</p>
+      </div>
+
+      <div class="setup-grid">
+        <div class="setup-players-col">
+          <div class="setup-col-header">
+            <h3>👥 Spillere (Mennesker & AI-Roboter)</h3>
+            <div class="player-count-btns">
+              <button id="btn-rem-player" class="mini-btn">− Færre</button>
+              <span id="setup-pcount">3 spillere</span>
+              <button id="btn-add-player" class="mini-btn">+ Flere</button>
+            </div>
+          </div>
+          <div id="setup-players-list" class="setup-players-list"></div>
+        </div>
+
+        <div class="setup-options-col">
+          <h3>🏠 Husregler & Spilloppsett</h3>
+
+          <label class="opt-group">
+            <span>Byggeregler for hus og hotell</span>
+            <select id="opt-build-rule" class="setup-select">
+              <option value="classic" selected>🎩 Klassisk (Standard): Må eie hele fargeserien + bygge jevnt</option>
+              <option value="classic_free">🏗️ Halvklassisk: Må eie hele fargeserien, men bygg fritt</option>
+              <option value="gjovik">🏡 Snille Gjøvik-regler: Kan bygge hus på enkeltgater uten serie</option>
+            </select>
+          </label>
+
+          <label class="opt-group">
+            <span>Fastland-potten (Gratis Parkering)</span>
+            <select id="opt-pot-rule" class="setup-select">
+              <option value="pot" selected>🏊‍♂️ Husregel: Skatter og bøter samles i Fastland-potten</option>
+              <option value="classic">🏛️ Klassisk: Skatter går til kommunen (Fastland gir kr 0)</option>
+            </select>
+          </label>
+
+          <label class="opt-group">
+            <span>Landing nøyaktig på START (Jernbanetorget)</span>
+            <select id="opt-go-rule" class="setup-select">
+              <option value="normal" selected>🚉 Klassisk: kr 2 000 både ved passering og landing</option>
+              <option value="double">💰 Husregel: Dobbel lønn (kr 4 000) ved landing nøyaktig på START!</option>
+            </select>
+          </label>
+
+          <label class="opt-group">
+            <span>Byauksjon når noen takker nei til å kjøpe gate</span>
+            <select id="opt-auction-rule" class="setup-select">
+              <option value="on" selected>🔨 På (Standard): Andre spillere og roboter kan by på tomta</option>
+              <option value="off">🚫 Av: Tomta forblir ledig uten auksjon</option>
+            </select>
+          </label>
+
+          <div class="opt-row-two">
+            <label class="opt-group">
+              <span>Startkapital</span>
+              <select id="opt-start-cash" class="setup-select">
+                <option value="15000" selected>💰 kr 15 000 (Vanlig)</option>
+                <option value="25000">🤑 kr 25 000 (Storkar)</option>
+                <option value="10000">🎓 kr 10 000 (Student)</option>
+              </select>
+            </label>
+
+            <label class="opt-group">
+              <span>«Bytt Sete»-skjerm (Mennesker)</span>
+              <select id="opt-hotseat-screen" class="setup-select">
+                <option value="on" selected>🪑 Vis mellom mennesketurer</option>
+                <option value="off">⚡ Hurtigbytte (Ingen pause)</option>
+              </select>
+            </label>
+          </div>
+
+          <button id="btn-start-game" class="primary-btn start-game-btn">
+            🚀 START SPILLET I GJØVIK!
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Winner Celebration Modal -->
+  <div id="winner-modal" class="modal-backdrop hidden">
+    <div class="winner-card glass-panel">
+      <div class="winner-crown">👑🦢👑</div>
+      <h1 id="win-title">VI HAR EN GJØVIKMILLIONÆR!</h1>
+      <p id="win-desc" class="win-desc">Spiller 1 eier hele byen fra Hunndalen til Hovdetoppen!</p>
+      <button onclick="location.reload()" class="primary-btn big-btn">🔄 Spill en ny runde</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>
