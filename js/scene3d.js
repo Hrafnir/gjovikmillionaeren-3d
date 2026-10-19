@@ -1243,6 +1243,14 @@ export class BoardScene3D {
     }
   }
 
+  // Helper to get forward track angle (+X forward) at a given tileId
+  getTrackForwardAngle(tileId) {
+    if (tileId >= 0 && tileId < 10) return Math.PI;          // Bottom row: moving left (-X)
+    if (tileId >= 10 && tileId < 20) return Math.PI / 2;     // Left column: moving up (-Z)
+    if (tileId >= 20 && tileId < 30) return 0;               // Top row: moving right (+X)
+    return -Math.PI / 2;                                     // Right column: moving down (+Z)
+  }
+
   // Create Custom 3D Token for each Player
   createPlayerTokens(players) {
     // Clear existing
@@ -1253,6 +1261,7 @@ export class BoardScene3D {
       const tokenGroup = this.buildCustomTokenMesh(p.token.id, p.token.color);
       const pos = this.getPlayerSlotPosition(p.position, idx, players.length);
       tokenGroup.position.copy(pos);
+      tokenGroup.rotation.y = this.getTrackForwardAngle(p.position);
       this.scene.add(tokenGroup);
       this.playerTokens.set(p.id, tokenGroup);
     });
@@ -1260,61 +1269,594 @@ export class BoardScene3D {
 
   buildCustomTokenMesh(tokenId, colorHex) {
     const group = new THREE.Group();
-    const mainMat = new THREE.MeshStandardMaterial({
+
+    const playerMat = new THREE.MeshStandardMaterial({
       color: colorHex,
       roughness: 0.25,
-      metalness: 0.45
+      metalness: 0.35
+    });
+    const playerGlowMat = new THREE.MeshStandardMaterial({
+      color: colorHex,
+      emissive: colorHex,
+      emissiveIntensity: 0.38,
+      roughness: 0.2,
+      metalness: 0.5
     });
     const goldMat = new THREE.MeshStandardMaterial({
       color: 0xfbbf24,
       roughness: 0.2,
-      metalness: 0.8
+      metalness: 0.85
+    });
+    const darkBaseMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.3,
+      metalness: 0.6
     });
 
-    // Base pedestal
-    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.62, 0.22, 20), goldMat);
-    ped.position.y = 0.11;
-    ped.castShadow = true;
-    group.add(ped);
+    // Shared Collector Pedestal Base with Player-Colored Glowing Ring & Brass Trim
+    const pedBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.64, 0.14, 28), darkBaseMat);
+    pedBottom.position.y = 0.07;
+    pedBottom.castShadow = true;
+    pedBottom.receiveShadow = true;
+    group.add(pedBottom);
 
+    const colorRing = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.055, 12, 28), playerGlowMat);
+    colorRing.rotation.x = Math.PI / 2;
+    colorRing.position.y = 0.13;
+    group.add(colorRing);
+
+    const brassTop = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.54, 0.06, 28), goldMat);
+    brassTop.position.y = 0.17;
+    brassTop.castShadow = true;
+    group.add(brassTop);
+
+    // ==================== 1. SKIBLADNER (🚢 Mjøsas Hvite Svane) ====================
     if (tokenId === 'skibladner') {
-      const miniBuilt = this.buildSkibladnerModel(0.24);
-      miniBuilt.ship.position.y = 0.18;
+      // Mjøsa wave cushion under the steamer
+      const waveMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.2, metalness: 0.3 });
+      const waveBase = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.49, 0.08, 24), waveMat);
+      waveBase.position.y = 0.22;
+      group.add(waveBase);
+
+      // White foam bow wake
+      const wakeMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.4 });
+      [-0.18, 0.18].forEach(zSide => {
+        const wake = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.03, 0.06), wakeMat);
+        wake.position.set(0.15, 0.26, zSide);
+        wake.rotation.y = zSide > 0 ? -0.25 : 0.25;
+        group.add(wake);
+      });
+
+      const miniBuilt = this.buildSkibladnerModel(0.25);
+      miniBuilt.ship.position.y = 0.16;
       group.add(miniBuilt.ship);
-    } else if (tokenId === 'chocolate') {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.75, 0.28), mainMat);
-      bar.position.y = 0.58;
-      bar.rotation.z = 0.2;
-      bar.castShadow = true;
-      group.add(bar);
-    } else if (tokenId === 'ski') {
-      const s1 = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.22), mainMat);
-      s1.position.y = 0.55;
-      s1.rotation.z = 0.45;
-      const s2 = s1.clone();
-      s2.rotation.z = -0.45;
-      group.add(s1, s2);
-    } else if (tokenId === 'ntnu') {
-      const capBase = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.32, 0.35, 16), mainMat);
-      capBase.position.y = 0.4;
-      const mortar = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.08, 0.85), mainMat);
-      mortar.position.y = 0.62;
-      group.add(capBase, mortar);
-    } else if (tokenId === 'tractor') {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.45, 0.45), mainMat);
-      body.position.y = 0.48;
-      const cab = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), mainMat);
-      cab.position.set(-0.14, 0.82, 0);
-      group.add(body, cab);
-    } else {
-      // Swan
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), mainMat);
-      body.scale.set(1.2, 0.8, 0.9);
-      body.position.y = 0.45;
-      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.55, 12), mainMat);
-      neck.position.set(0.28, 0.78, 0);
-      neck.rotation.z = -0.25;
-      group.add(body, neck);
+    }
+
+    // ==================== 2. GJØVIK-SJOKOLADEN (🍫 Chokoladefabrikken) ====================
+    else if (tokenId === 'chocolate') {
+      const chocGroup = new THREE.Group();
+      chocGroup.position.set(0, 0.22, 0);
+      chocGroup.rotation.z = 0.18;  // Jaunty tilted showcase angle
+      chocGroup.rotation.y = -0.25;
+
+      const darkChocMat = new THREE.MeshStandardMaterial({
+        color: 0x3b1d0e,
+        roughness: 0.22,
+        metalness: 0.08
+      });
+      const milkChocMat = new THREE.MeshStandardMaterial({
+        color: 0x542914,
+        roughness: 0.26,
+        metalness: 0.05
+      });
+
+      // Main molded chocolate slab
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.08, 0.72), darkChocMat);
+      slab.position.y = 0.56;
+      slab.castShadow = true;
+      chocGroup.add(slab);
+
+      // 3x4 Grid of 3D beveled chocolate squares (ruter) on both front & back
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 3; col++) {
+          const sqY = 0.22 + row * 0.23;
+          const sqZ = -0.21 + col * 0.21;
+          [-0.08, 0.08].forEach(xSide => {
+            const piece = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.19, 0.18), milkChocMat);
+            piece.position.set(xSide, sqY, sqZ);
+            piece.castShadow = true;
+            chocGroup.add(piece);
+          });
+        }
+      }
+
+      // Crinkled Golden Foil Band peeling back in the middle
+      const foilBand = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.76), goldMat);
+      foilBand.position.y = 0.55;
+      foilBand.castShadow = true;
+      chocGroup.add(foilBand);
+
+      // Diagonal folded gold foil triangles
+      [-0.18, 0.18].forEach((zOff, i) => {
+        const fold = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.24, 3), goldMat);
+        fold.position.set(0.11, 0.66, zOff);
+        fold.rotation.z = i === 0 ? -0.3 : 0.3;
+        chocGroup.add(fold);
+      });
+
+      // Classic Vintage «GJØVIK CHOKOLADE» Wrapper around bottom half
+      const wrapCanvas = document.createElement('canvas');
+      wrapCanvas.width = 256;
+      wrapCanvas.height = 256;
+      const wCtx = wrapCanvas.getContext('2d');
+      wCtx.fillStyle = '#991b1b';
+      wCtx.fillRect(0, 0, 256, 256);
+      wCtx.strokeStyle = '#fbbf24';
+      wCtx.lineWidth = 14;
+      wCtx.strokeRect(12, 12, 232, 232);
+      wCtx.fillStyle = '#fef3c7';
+      wCtx.textAlign = 'center';
+      wCtx.font = '900 44px serif';
+      wCtx.fillText('GJØVIK', 128, 112);
+      wCtx.fillStyle = '#fbbf24';
+      wCtx.font = '800 28px sans-serif';
+      wCtx.fillText('CHOKOLADE', 128, 162);
+      wCtx.font = '700 22px serif';
+      wCtx.fillText('★ ANNO 1909 ★', 128, 206);
+
+      const wrapTex = new THREE.CanvasTexture(wrapCanvas);
+      const wrapMat = new THREE.MeshStandardMaterial({ map: wrapTex, roughness: 0.3 });
+      const wrapperBox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.52, 0.78),
+        [playerMat, playerMat, goldMat, playerMat, wrapMat, wrapMat]
+      );
+      wrapperBox.position.y = 0.28;
+      wrapperBox.castShadow = true;
+      chocGroup.add(wrapperBox);
+
+      group.add(chocGroup);
+    }
+
+    // ==================== 3. FASTLAND-HOPPSKI (🎿 Klar for svev fra Hovdetoppen) ====================
+    else if (tokenId === 'ski') {
+      const skiGroup = new THREE.Group();
+      skiGroup.position.y = 0.2;
+
+      // Snowy jump-hill mound on top of pedestal
+      const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 });
+      const snowMound = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.16, 20), snowMat);
+      snowMound.position.y = 0.06;
+      snowMound.rotation.z = 0.18;
+      skiGroup.add(snowMound);
+
+      const bindingMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.6 });
+      const whiteStripeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
+
+      // Build a pair of long ski-jumping skis with curved upturned tips (+X forward)
+      const makeJumpingSki = (zOffset, yawAngle) => {
+        const singleSki = new THREE.Group();
+        singleSki.position.set(0, 0.24, zOffset);
+        singleSki.rotation.y = yawAngle;
+        singleSki.rotation.z = 0.22; // Angled upward for take-off!
+
+        // Main flat ski body
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.045, 0.15), playerMat);
+        blade.castShadow = true;
+        singleSki.add(blade);
+
+        // Norwegian racing center stripe
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.05, 0.05), whiteStripeMat);
+        singleSki.add(stripe);
+
+        // Upturned curved ski tip (tupp) at +X
+        const tipCurve = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.042, 0.14), playerMat);
+        tipCurve.position.set(0.68, 0.06, 0);
+        tipCurve.rotation.z = 0.48;
+        tipCurve.castShadow = true;
+        singleSki.add(tipCurve);
+
+        // Pointed apex of ski tip
+        const tipPoint = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.18, 4), whiteStripeMat);
+        tipPoint.rotation.z = -Math.PI / 2 + 0.65;
+        tipPoint.rotation.y = Math.PI / 4;
+        tipPoint.position.set(0.84, 0.15, 0);
+        singleSki.add(tipPoint);
+
+        // Detailed Ski Binding & Boot Heelpiece
+        const toePiece = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.13), bindingMat);
+        toePiece.position.set(0.08, 0.05, 0);
+        singleSki.add(toePiece);
+
+        const heelPiece = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.09, 0.12), goldMat);
+        heelPiece.position.set(-0.14, 0.05, 0);
+        singleSki.add(heelPiece);
+
+        return singleSki;
+      };
+
+      // Classic V-style / parallel ski pair
+      skiGroup.add(makeJumpingSki(-0.14, 0.09));
+      skiGroup.add(makeJumpingSki(0.14, -0.09));
+
+      // Two Ski Poles with grips & snow baskets planted on each side
+      const poleShaftMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85, roughness: 0.2 });
+      [-0.31, 0.31].forEach((zPole, idx) => {
+        const poleGrp = new THREE.Group();
+        poleGrp.position.set(-0.08, 0.52, zPole);
+        poleGrp.rotation.z = idx === 0 ? -0.22 : -0.15;
+        poleGrp.rotation.x = idx === 0 ? 0.12 : -0.12;
+
+        // Metallic shaft
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.016, 0.92, 8), poleShaftMat);
+        shaft.castShadow = true;
+        poleGrp.add(shaft);
+
+        // Ergonomic top grip
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.028, 0.16, 10), bindingMat);
+        grip.position.y = 0.42;
+        poleGrp.add(grip);
+
+        // Snow basket ring near bottom (trinse)
+        const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 12), bindingMat);
+        basket.position.y = -0.34;
+        poleGrp.add(basket);
+
+        skiGroup.add(poleGrp);
+      });
+
+      group.add(skiGroup);
+    }
+
+    // ==================== 4. KALLERUD-STUDENTEN (🎓 NTNU Mortarboard & Diploma) ====================
+    else if (tokenId === 'ntnu') {
+      const ntnuGroup = new THREE.Group();
+      ntnuGroup.position.y = 0.2;
+
+      const velvetBlackMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.55, metalness: 0.1 });
+      const pagesMat = new THREE.MeshStandardMaterial({ color: 0xfefce8, roughness: 0.4 });
+      const ntnuBlueMat = new THREE.MeshStandardMaterial({ color: 0x00509e, roughness: 0.35 });
+
+      // Bottom textbook (NTNU Ingeniørfag / Cyber)
+      const bookCover = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.14, 0.62), ntnuBlueMat);
+      bookCover.position.y = 0.07;
+      bookCover.rotation.y = 0.12;
+      bookCover.castShadow = true;
+      ntnuGroup.add(bookCover);
+
+      const bookPages = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.10, 0.58), pagesMat);
+      bookPages.position.set(0.02, 0.07, 0);
+      bookPages.rotation.y = 0.12;
+      ntnuGroup.add(bookPages);
+
+      // Academic Graduation Cap (Studentlue / Mortarboard) sitting on the book
+      const capGroup = new THREE.Group();
+      capGroup.position.set(-0.02, 0.14, -0.02);
+      capGroup.rotation.z = 0.08;
+      capGroup.rotation.x = 0.05;
+
+      // Skullcap (pull) with player-colored academic band at bottom
+      const skullCap = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.28, 24), velvetBlackMat);
+      skullCap.position.y = 0.16;
+      skullCap.castShadow = true;
+      capGroup.add(skullCap);
+
+      const capBand = new THREE.Mesh(new THREE.CylinderGeometry(0.295, 0.285, 0.07, 24), playerMat);
+      capBand.position.y = 0.06;
+      capGroup.add(capBand);
+
+      // Crisp Square Mortarboard Top with Gold Trim
+      const boardTop = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.055, 0.86), velvetBlackMat);
+      boardTop.position.y = 0.31;
+      boardTop.rotation.y = Math.PI / 4; // Diamond orientation
+      boardTop.castShadow = true;
+      capGroup.add(boardTop);
+
+      const boardTrim = new THREE.Mesh(new THREE.BoxGeometry(0.89, 0.025, 0.89), playerMat);
+      boardTrim.position.y = 0.305;
+      boardTrim.rotation.y = Math.PI / 4;
+      capGroup.add(boardTrim);
+
+      // Gold Center Button & Draped Golden Tassel (Dusk)
+      const topButton = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 16), goldMat);
+      topButton.position.y = 0.35;
+      capGroup.add(topButton);
+
+      // Tassel cord across the mortarboard
+      const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 8), goldMat);
+      cord.rotation.z = Math.PI / 2 - 0.08;
+      cord.position.set(0.21, 0.35, 0.08);
+      cord.rotation.y = -0.35;
+      capGroup.add(cord);
+
+      // Hanging tassel fringe over the edge
+      const tasselDrop = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.26, 12), goldMat);
+      tasselDrop.position.set(0.41, 0.21, 0.15);
+      capGroup.add(tasselDrop);
+
+      ntnuGroup.add(capGroup);
+
+      // Rolled White Diploma Scroll with Ribbon Bow beside the cap
+      const scrollGroup = new THREE.Group();
+      scrollGroup.position.set(0.24, 0.18, 0.24);
+      scrollGroup.rotation.x = Math.PI / 2;
+      scrollGroup.rotation.z = 0.55;
+
+      const parchment = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.64, 16), pagesMat);
+      parchment.castShadow = true;
+      scrollGroup.add(parchment);
+
+      const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.11, 16), playerMat);
+      scrollGroup.add(ribbon);
+
+      ntnuGroup.add(scrollGroup);
+      group.add(ntnuGroup);
+    }
+
+    // ==================== 5. TOTEN-TRAKTOREN (🚜 Ekte Traktor med store bakhjul, førerhus og eksosrør) ====================
+    else if (tokenId === 'tractor') {
+      const tractor = new THREE.Group();
+      tractor.position.y = 0.20;
+
+      const tireMat = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.75, metalness: 0.1 });
+      const rimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.25, metalness: 0.5 });
+      const chassisMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
+      const cabGlassMat = new THREE.MeshStandardMaterial({
+        color: 0xbae6fd,
+        transparent: true,
+        opacity: 0.65,
+        roughness: 0.1,
+        metalness: 0.8
+      });
+      const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.9 });
+      const headlightMat = new THREE.MeshStandardMaterial({
+        color: 0xfef08a,
+        emissive: 0xfbbf24,
+        emissiveIntensity: 0.75
+      });
+
+      // Helper to build a detailed tractor wheel with radial rubber lug treads & yellow rim
+      const makeTractorWheel = (radius, width, lugCount) => {
+        const wGrp = new THREE.Group();
+        const tire = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 24), tireMat);
+        tire.rotation.x = Math.PI / 2;
+        tire.castShadow = true;
+        wGrp.add(tire);
+
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.58, radius * 0.58, width + 0.02, 20), rimMat);
+        rim.rotation.x = Math.PI / 2;
+        wGrp.add(rim);
+
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, width + 0.04, 12), chassisMat);
+        hub.rotation.x = Math.PI / 2;
+        wGrp.add(hub);
+
+        // Deep tractor tire treads (knaster)
+        for (let i = 0; i < lugCount; i++) {
+          const ang = (i / lugCount) * Math.PI * 2;
+          const lug = new THREE.Mesh(
+            new THREE.BoxGeometry(radius * 0.18, 0.045, width * 0.92),
+            tireMat
+          );
+          lug.position.set(Math.cos(ang) * radius, Math.sin(ang) * radius, 0);
+          lug.rotation.z = ang + Math.PI / 2;
+          wGrp.add(lug);
+        }
+        return wGrp;
+      };
+
+      // Two HUGE Rear Tractor Wheels (at -X)
+      [-0.36, 0.36].forEach(zSide => {
+        const rearWheel = makeTractorWheel(0.27, 0.19, 12);
+        rearWheel.position.set(-0.24, 0.27, zSide);
+        tractor.add(rearWheel);
+
+        // Curved Rear Mudguards (bakskjermer) over the rear tires
+        const fender = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.21), playerMat);
+        fender.position.set(-0.24, 0.57, zSide);
+        fender.castShadow = true;
+        tractor.add(fender);
+      });
+
+      // Two Smaller Front Steered Wheels (at +X)
+      [-0.31, 0.31].forEach(zSide => {
+        const frontWheel = makeTractorWheel(0.16, 0.12, 8);
+        frontWheel.position.set(0.36, 0.16, zSide);
+        tractor.add(frontWheel);
+      });
+
+      // Heavy Cast-Iron Underbody Chassis & Axles
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.16, 0.36), chassisMat);
+      chassis.position.set(0.06, 0.24, 0);
+      tractor.add(chassis);
+
+      // Sculpted Engine Hood (Panser) pointing forward (+X)
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.30, 0.36), playerMat);
+      hood.position.set(0.24, 0.44, 0);
+      hood.castShadow = true;
+      tractor.add(hood);
+
+      // Rounded top nose of hood
+      const hoodTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.55, 16), playerMat);
+      hoodTop.rotation.z = Math.PI / 2;
+      hoodTop.position.set(0.24, 0.56, 0);
+      hoodTop.scale.set(1, 0.65, 1);
+      tractor.add(hoodTop);
+
+      // Dark Front Radiator Grille & Twin Glowing Headlights
+      const grille = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.26, 0.28), chassisMat);
+      grille.position.set(0.52, 0.44, 0);
+      tractor.add(grille);
+
+      [-0.17, 0.17].forEach(zLight => {
+        const lampHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.07, 12), chassisMat);
+        lampHousing.rotation.z = Math.PI / 2;
+        lampHousing.position.set(0.49, 0.49, zLight);
+        tractor.add(lampHousing);
+
+        const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.08, 12), headlightMat);
+        lens.rotation.z = Math.PI / 2;
+        lens.position.set(0.50, 0.49, zLight);
+        tractor.add(lens);
+      });
+
+      // Tall Vertical Exhaust Pipe (Eksosrør) with Muffler & Flap on the Hood
+      const exhaustPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.56, 10), chromeMat);
+      exhaustPipe.position.set(0.28, 0.78, 0.13);
+      exhaustPipe.castShadow = true;
+      tractor.add(exhaustPipe);
+
+      const muffler = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.24, 12), chassisMat);
+      muffler.position.set(0.28, 0.74, 0.13);
+      tractor.add(muffler);
+
+      const exhaustFlap = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.015, 10), chromeMat);
+      exhaustFlap.position.set(0.29, 1.07, 0.13);
+      exhaustFlap.rotation.z = -0.35;
+      tractor.add(exhaustFlap);
+
+      // Enclosed Driver Cab (Førerhus) with Glass Windows, Corner Pillars & Roof
+      const cabGlass = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.40, 0.42), cabGlassMat);
+      cabGlass.position.set(-0.20, 0.74, 0);
+      tractor.add(cabGlass);
+
+      // 4 Black ROPS Cab Pillars
+      [[-0.40, -0.20], [-0.40, 0.20], [0.0, -0.20], [0.0, 0.20]].forEach(([px, pz]) => {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.42, 0.035), chassisMat);
+        pillar.position.set(px, 0.74, pz);
+        tractor.add(pillar);
+      });
+
+      // Tractor Cab Roof & Rotating Amber Beacon (Varsellampe)
+      const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.06, 0.48), playerMat);
+      cabRoof.position.set(-0.20, 0.96, 0);
+      cabRoof.castShadow = true;
+      tractor.add(cabRoof);
+
+      const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.08, 12), headlightMat);
+      beacon.position.set(-0.20, 1.02, 0);
+      tractor.add(beacon);
+
+      group.add(tractor);
+    }
+
+    // ==================== 6. BYVÅPEN-SVANEN (🦢 Gjøviks Hvite Svane med løftede vinger og S-hals) ====================
+    else {
+      const swan = new THREE.Group();
+      swan.position.y = 0.20;
+
+      const whitePlumageMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.22,
+        metalness: 0.05
+      });
+      const beakMat = new THREE.MeshStandardMaterial({
+        color: 0xea580c,
+        roughness: 0.3,
+        metalness: 0.1
+      });
+      const blackMaskMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        roughness: 0.3
+      });
+
+      // Heraldic Water Cushion in player/royal color on top of pedestal
+      const waterCushion = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.48, 0.07, 24), playerMat);
+      waterCushion.position.y = 0.03;
+      swan.add(waterCushion);
+
+      // Plump Sculpted White Swan Body
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 18), whitePlumageMat);
+      body.scale.set(1.38, 0.78, 0.92);
+      body.position.set(-0.04, 0.26, 0);
+      body.castShadow = true;
+      swan.add(body);
+
+      // Breast swell at front (+X)
+      const breast = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 16), whitePlumageMat);
+      breast.scale.set(1.0, 0.88, 0.85);
+      breast.position.set(0.20, 0.30, 0);
+      swan.add(breast);
+
+      // Upturned Pointed Tail Feathers at Stern (-X)
+      for (let t = -1; t <= 1; t++) {
+        const tailFeather = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.28, 8), whitePlumageMat);
+        tailFeather.position.set(-0.46, 0.34, t * 0.07);
+        tailFeather.rotation.z = 0.95;
+        tailFeather.rotation.y = t * 0.2;
+        tailFeather.castShadow = true;
+        swan.add(tailFeather);
+      }
+
+      // Majestic Raised, Arched Multi-Tiered Wings (Som på Gjøviks byvåpen!)
+      [-1, 1].forEach(sideSign => {
+        const wingGroup = new THREE.Group();
+        wingGroup.position.set(-0.02, 0.34, sideSign * 0.23);
+        wingGroup.rotation.x = sideSign * 0.28; // Flared gracefully outward
+        wingGroup.rotation.z = 0.18;
+
+        // 3 Tiered Feather Layers curving upward and back
+        [
+          { w: 0.56, h: 0.42, x: -0.04, y: 0.16, rotZ: 0.25 },
+          { w: 0.48, h: 0.34, x: -0.12, y: 0.32, rotZ: 0.42 },
+          { w: 0.38, h: 0.24, x: -0.20, y: 0.46, rotZ: 0.58 }
+        ].forEach((tier, idx) => {
+          const featherLayer = new THREE.Mesh(
+            new THREE.SphereGeometry(0.28, 16, 12),
+            whitePlumageMat
+          );
+          featherLayer.scale.set(tier.w / 0.28, tier.h / 0.28, 0.22);
+          featherLayer.position.set(tier.x, tier.y, sideSign * idx * 0.02);
+          featherLayer.rotation.z = tier.rotZ;
+          featherLayer.castShadow = true;
+          wingGroup.add(featherLayer);
+        });
+
+        swan.add(wingGroup);
+      });
+
+      // Graceful S-Curved Swan Neck using CatmullRomCurve3 + TubeGeometry
+      const neckCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.24, 0.32, 0),
+        new THREE.Vector3(0.36, 0.50, 0),
+        new THREE.Vector3(0.24, 0.76, 0),
+        new THREE.Vector3(0.30, 0.96, 0),
+        new THREE.Vector3(0.40, 0.94, 0)
+      ]);
+      const neckGeo = new THREE.TubeGeometry(neckCurve, 24, 0.072, 14, false);
+      const neckMesh = new THREE.Mesh(neckGeo, whitePlumageMat);
+      neckMesh.castShadow = true;
+      swan.add(neckMesh);
+
+      // Sculpted Swan Head at top of S-curve
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.095, 16, 14), whitePlumageMat);
+      head.scale.set(1.25, 0.92, 0.88);
+      head.position.set(0.41, 0.94, 0);
+      head.castShadow = true;
+      swan.add(head);
+
+      // Mute Swan Black Basal Knob (Nebbknøl) & Eyes
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 10), blackMaskMat);
+      knob.position.set(0.50, 0.97, 0);
+      swan.add(knob);
+
+      [-0.065, 0.065].forEach(zEye => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), blackMaskMat);
+        eye.position.set(0.45, 0.96, zEye);
+        swan.add(eye);
+      });
+
+      // Vibrant Orange Pointed Swan Beak (+X forward)
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.18, 12), beakMat);
+      beak.rotation.z = -Math.PI / 2 - 0.15;
+      beak.position.set(0.57, 0.92, 0);
+      swan.add(beak);
+
+      // Small Golden Crown on the Swan's Head
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.042, 0.06, 8), goldMat);
+      crown.position.set(0.39, 1.04, 0);
+      swan.add(crown);
+
+      group.add(swan);
     }
 
     return group;
@@ -1331,30 +1873,40 @@ export class BoardScene3D {
     );
   }
 
-  // Animate a token hopping step-by-step around the board
+  // Animate a token hopping step-by-step around the board while facing forward along the street!
   async animatePlayerStep(playerId, targetTileId, playerIdx, totalPlayers) {
     const token = this.playerTokens.get(playerId);
     if (!token) return;
 
     const startPos = token.position.clone();
     const endPos = this.getPlayerSlotPosition(targetTileId, playerIdx, totalPlayers);
+    const targetRotY = this.getTrackForwardAngle(targetTileId);
+
+    // Calculate movement vector so the token faces the direction it hops
+    const dx = endPos.x - startPos.x;
+    const dz = endPos.z - startPos.z;
+    const moveRotY = Math.hypot(dx, dz) > 0.05 ? Math.atan2(-dz, dx) : targetRotY;
 
     this.followTargetPos.copy(endPos);
 
     return new Promise(resolve => {
-      const duration = 175;
+      const duration = 185;
       const startTime = performance.now();
 
       const tick = (now) => {
         const t = Math.min((now - startTime) / duration, 1);
         token.position.lerpVectors(startPos, endPos, t);
         token.position.y = 0.4 + Math.sin(t * Math.PI) * 1.15;
-        token.rotation.y += 0.15;
+        token.rotation.y = moveRotY;
+        // Slight joyful forward pitch during the jump arc
+        token.rotation.z = Math.sin(t * Math.PI) * -0.14;
 
         if (t < 1) {
           requestAnimationFrame(tick);
         } else {
           token.position.copy(endPos);
+          token.rotation.y = targetRotY;
+          token.rotation.z = 0;
           resolve();
         }
       };
